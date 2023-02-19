@@ -1,6 +1,7 @@
 #! /bin/bash
-#VAR
+cd /vagrant
 lockfile=/tmp/.mylockfile
+#logFile=/vagrant/access-4560-644067.log
 logFile=./access-4560-644067.log
 X=10 #how many active IP we will search
 email=admin
