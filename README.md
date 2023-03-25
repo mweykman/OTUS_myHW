@@ -1,3 +1,4 @@
+# -*- mode: ruby -*-
 My HomeWork in OTUS Linux Professional
 les01. С чего начинается Linux. Обновление ядра Linux CentOS
 les02. Дисковая подсистема. MDADM
