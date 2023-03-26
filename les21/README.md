@@ -6,6 +6,7 @@ https://github.com/digitalstudium/grafana-docker-stack
 1. Поднимаем контейнеры командой из папки с docker-compose.yml файлом:
 docker compose up -d
 2. Редактируем файл /var/lib/docker/volumes/monitoring_prom-configs/_data/prometheus.yml
+                                            ^^^^^^^^^^ - эта часть у вас может быть названеа по другому
 Добавляем в концен файла следующие строки:
   - job_name: 'node-exporter'
 
