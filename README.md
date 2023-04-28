@@ -10,4 +10,5 @@ les08. Загрузка системы. GRUB2
 les09. Инициализация системы. Systemd
 les10-11. Bash. Grep, sed,awk etc. Scripts
 les12.  Управление процессами. 
+less18-19. Docker
 less21. Prometheus
