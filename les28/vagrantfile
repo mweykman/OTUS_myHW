@@ -18,7 +18,7 @@ MACHINES = {
 Vagrant.configure("2") do |config|
   MACHINES.each do |boxname, boxconfig|
     # Отключаем сетевую папку
-    config.vm.synced_folder ".", "/vagrant", disabled: true
+    #config.vm.synced_folder ".", "/vagrant", disabled: true
     # Добавляем сетевой интерфейс
     config.vm.network "private_network", ip: boxconfig[:ip]
     # Применяем параметры, указанные выше
@@ -36,6 +36,7 @@ Vagrant.configure("2") do |config|
           #Перезапуск службы SSHD
           systemctl restart sshd.service
   	  SHELL
+      box.vm.provision "shell", path: "script.sh"
     end
   end
 end
