@@ -1,106 +1,131 @@
-  - name: Set up NAT on inetRouter
-    block: 
-      - name: install iptables
-        yum:
-          name:
-          - iptables
-          - iptables-services
-          state: present
-          update_cache: true
+---
+- name: Network 
+  hosts: all
+  become: true
+  tasks: 
+    - name: Set up NAT on inetRouter
+      block: 
+        - name: install iptables
+          yum:
+            name:
+            - iptables
+            - iptables-services
+            state: present
+            update_cache: true
       
-      - name: copy iptables config
-        template: 
-          src: iptables
-          dest: /etc/sysconfig/iptables
-          owner: root
-          group: root
-          mode: 0600
+        - name: copy iptables config
+          template: 
+            src: iptables
+            dest: /etc/sysconfig/iptables
+            owner: root
+            group: root
+            mode: 0600
+        
+        - name: iptables on and autostart
+          service: 
+            name: iptables
+            state: restarted
+            enabled: true
+      when: (ansible_hostname == "inetRouter")
 
-      - name: iptables on and autostart
-        service: 
-          name: iptables
-          state: restarted
-          enable: true
-    when: (ansible_hostname == "inetRouter")
-
-  - name: set up forward packages across routers
-    sysctl:
-      name: net.ipv4.conf.all.forwarding
-      value: '1'
-      state: present
-    when: "'routers' in group_names"
+    - name: set up forward packages across routers
+      sysctl:
+        name: net.ipv4.conf.all.forwarding
+        value: '1'
+        state: present
+      when: "'routers' in group_names"
 
 # echo "DEFROUTE=no" >> /etc/sysconfig/network-scripts/ifcfg-eth0  
-  - name: DEFROUTE=no for centralRouter
-    lineinfile:
-      dest: /etc/sysconfig/network-scripts/ifcfg-eth0
-      line: DEFROUTE=no 
-    when: (ansible_hostname == "centralRouter") or 
-          (ansible_hostname == "centralServer") or
-          (ansible_hostname == "office01Router") or
-          (ansible_hostname == "office02Router")
+    - name: DEFROUTE=no for centralRouter
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+        line: DEFROUTE=no 
+      when: (ansible_hostname == "centralRouter") or 
+            (ansible_hostname == "centralServer") or
+            (ansible_hostname == "office01Router") or
+            (ansible_hostname == "office02Router")
 
   # echo "GATEWAY=192.168.255.1" >> /etc/sysconfig/network-scripts/ifcfg-eth1
-  - name: add default gateway for centralRouter
-    lineinfile:
-      dest: /etc/sysconfig/network-scripts/ifcfg-eth1
-      line: GATEWAY=192.168.255.1
-    when: (ansible_hostname == "centralRouter")
+    - name: add default gateway for centralRouter
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.1
+      when: (ansible_hostname == "centralRouter")
 
   # echo "GATEWAY=192.168.0.1" >> /etc/sysconfig/network-scripts/ifcfg-eth1
-  - name: add default gateway for centralServer
-    lineinfile:
-      dest: /etc/sysconfig/network-scripts/ifcfg-eth1
-      line: GATEWAY=192.168.0.1 
-    when: (ansible_hostname == "centralServer")
+    - name: add default gateway for centralServer
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.0.1 
+      when: (ansible_hostname == "centralServer")
 
   # echo "GATEWAY=192.168.255.9" >> /etc/sysconfig/network-scripts/ifcfg-eth1
-  - name: add default gateway for "office01Router"
-    lineinfile:
-      dest: /etc/sysconfig/network-scripts/ifcfg-eth1
-      line: GATEWAY=192.168.255.9 
-    when: (ansible_hostname == "office01Router")
+    - name: add default gateway for "office01Router"
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.9 
+      when: (ansible_hostname == "office01Router")
 
   # echo "GATEWAY=192.168.255.5" >> /etc/sysconfig/network-scripts/ifcfg-eth1
-  - name: add default gateway for "office02Router"
-    lineinfile:
-      dest: /etc/sysconfig/network-scripts/ifcfg-eth1
-      line: GATEWAY=192.168.255.5 
-    when: (ansible_hostname == "office02Router")
+    - name: add default gateway for "office02Router"
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.5 
+      when: (ansible_hostname == "office02Router")
 
-
-  - name: set up route on office01Server
-    template:
-      src: office01Server_route.j2
-      dest: /etc/netplan/50-vagrant.yaml
-      owner: root
-      group: root
-      mode: 0644
-    when: (ansible_hostname == "office01Server")
+    - name: set up route on office01Server
+      template:
+        src: office01Server_route.j2
+        dest: /etc/netplan/50-vagrant.yaml
+        owner: root
+        group: root
+        mode: 0644
+      when: (ansible_hostname == "office01Server")
     
-  - name: set up route on office02Server
-    template:
-      src: office02Server_route.j2
-      dest: /etc/network/interfaces
-      owner: root
-      group: root
-      mode: 0644
-    when: (ansible_hostname == "office02Server")
+    - name: set up route on office02Server
+      template: 
+        src: office02Server_route.j2
+        dest: /etc/netplan/50-vagrant.yaml
+        owner: root
+        group: root
+        mode: 0644
+      when: (ansible_hostname == "office02Server")
 
-  - name: add routes to centralRouter
-    block:
-      -name: set up route on centralRouter eth5
-       template:
-         src: centralRouter_route_eth5.j2
-         dest: /etc/sysconfig/network-scripts/route-eth5
-         owner: root
-         group: root
-         mode: 0644
-      -name: set up route on centralRouter eth6
-       template:
-         src: centralRouter_route_eth6.j2
-         dest: /etc/sysconfig/network-scripts/route-eth6
-         owner: root
-         group: root
-         mode: 0644
-    when: (ansible_hostname == "centralRouter")
+    - name: netplan apply
+      command: sudo netplan apply
+      when: (ansible_hostname == "office01Server") or
+            (ansible_hostname == "office02Server")
+
+    - name: add routes to centralRouter
+      block:
+       - name: set up route on centralRouter eth5
+         template:
+           src: centralRouter_route_eth5.j2
+           dest: /etc/sysconfig/network-scripts/route-eth5
+           owner: root
+           group: root
+           mode: 0644
+       - name: set up route on centralRouter eth6
+         template:
+           src: centralRouter_route_eth6.j2
+           dest: /etc/sysconfig/network-scripts/route-eth6
+           owner: root
+           group: root
+           mode: 0644
+      when: (ansible_hostname == "centralRouter")
+
+    - name: set up route on inetRouter eth1
+      template:
+           src: inetRouter_route_eth1.j2
+           dest: /etc/sysconfig/network-scripts/route-eth1
+           owner: root
+           group: root
+           mode: 0644
+      when: (ansible_hostname == "inetRouter")
+
+    - name: network service reload
+      service: 
+        name: network
+        state: restarted
+        enabled: true
+      when: "'routers' in group_names"

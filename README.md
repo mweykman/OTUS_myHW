@@ -10,6 +10,8 @@ les08. Загрузка системы. GRUB2
 les09. Инициализация системы. Systemd
 les10-11. Bash. Grep, sed,awk etc. Scripts
 les12.  Управление процессами. 
+les15-16. Ansible
 les18-19. Docker
 les21. Prometheus
+les26. Архитектура сетей.
 les28. Пользователи и группы. Авторизация и аутентификация 
