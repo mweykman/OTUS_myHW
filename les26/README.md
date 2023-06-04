@@ -36,6 +36,7 @@ Vagrantfile поднимет следующие хосты (все кроме д
     ----> Central --IRouter --> internet
     Office2----/
     ```
+Полная таблица сетевой структуры прописана здесь: https://docs.google.com/spreadsheets/d/19xLUJur0US4fDh69WzyeKImaInDHkWhrR9a-6MBQN9w/edit#gid=0
 Этап 2. Настройка с помощью Ansible:
 ansible-playbook -i hosts playbook.yml
 данный playbook осуществляет всю настройку сети, а именно:
