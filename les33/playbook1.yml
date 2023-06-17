@@ -1,0 +1,63 @@
+---
+- name: OpenVPN configuration
+  hosts: all
+  #Параметр выполнения модулей от root-пользователя
+  become: yes
+  tasks:
+  - name:  Install EPEL Repo package from standard repo
+    yum:
+      name: epel-release
+      state: present
+  - name: install base tools
+    yum:
+      name:
+        - nano
+        - traceroute
+        - net-tools
+        - openvpn
+        - iperf3
+      state: present
+      update_cache: true
+# настраиваем selinux
+  - name: turn off selinux
+    become: true
+    shell: >
+      setenforce 0;
+
+# Генерим служебные ключи
+  - name: key generation
+    become: true
+    shell: >
+      openvpn --genkey --secret /etc/openvpn/static.key;
+    when: (ansible_hostname == 'server')
+#    args:
+#      creates: /etc/openvpn/static.key 
+# Копируем конфиг файл
+  - name: copy server.conf to server and client
+    template:
+      src: templates/config.j2
+      dest: /etc/openvpn/server.conf
+      owner: root
+      group: root
+      mode: 0640
+# Копируем ключ с сервера на клиент
+  - name: Store key to host
+    ansible.builtin.fetch:
+      src: /etc/openvpn/static.key
+      dest: templates/static.key
+    when: (ansible_hostname == 'server')
+  - name: copy key to client
+    ansible.builtin.copy:
+      src: templates/static.key/server/etc/openvpn/static.key
+      dest: /etc/openvpn/static.key
+      owner: root
+      group: root
+      mode: 0640
+    when: (ansible_hostname == 'client')
+
+#включаем Open VPN службу
+  - name: enable openvpn service
+    service:
+      name: openvpn@server
+      state: restarted
+      enabled: true

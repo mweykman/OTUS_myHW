@@ -1,0 +1,93 @@
+---
+- name: OpenVPN configuration. Part 2
+  hosts: all
+  #Параметр выполнения модулей от root-пользователя
+  become: yes
+    #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
+    tasks:  
+    - name:  Install EPEL Repo package from standard repo
+      yum:
+        name: epel-release
+        state: present
+    - name: install applications
+      yum:
+        name: 
+          - easy-rsa
+          - nano
+          - traceroute
+          - net-tools
+          - openvpn
+          - iperf3
+        state: present
+        update_cache: true   
+    - name: server block
+      block:
+# настраиваем selinux
+      - name: turn off selinux
+        become: true
+        shell: >
+          setenforce 0;  
+#генерируем ключ и сертификаты
+      - name: keys generation
+        ansible.builtin.script: templates/certs_key_gen.sh
+   #    args:
+    #     creates: /etc/openvpn/playbook2.done 
+# копируем конфиг на сервер
+      - name: copy server.conf to server
+        template:
+          src: templates/ras_server.conf
+          dest: /etc/openvpn/server.conf
+          owner: root
+          group: root
+          mode: 0640
+# Копируем сертификаты и ключ с сервера на клиент
+      - name: Store ca cert to host
+        ansible.builtin.fetch:
+          src: /etc/openvpn/pki/ca.crt
+          dest: templates/ras_server/ca.crt
+      - name: Store client cert to host
+        ansible.builtin.fetch:
+          src: /etc/openvpn/pki/issued/client.crt
+          dest: templates/ras_server/client.crt
+      - name: Store client key to host
+        ansible.builtin.fetch:
+          src: /etc/openvpn/pki/private/client.key
+          dest: templates/ras_server/client.key
+#включаем/перезапускаем Open VPN службу
+      - name: enable openvpn service
+        service:
+          name: openvpn@server
+          state: restarted
+          enabled: true
+      - name: set up forward packages across routers
+        sysctl:
+          name: net.ipv4.conf.all.forwarding
+          value: '1'
+          state: present
+      when: (ansible_hostname == 'server')    
+
+# блок, если используем в качестве клиента ВМ client
+    - name: copy certs and key to client block
+      block:
+        - name: copy key to client
+          ansible.builtin.copy:
+            src: templates/ras_server/client.key/server/etc/openvpn/pki/private/client.key
+            dest: /etc/openvpn/ras_vpn/client.key
+            owner: root
+            group: root
+            mode: 0600
+        - name: copy cert client to client
+          ansible.builtin.copy:
+            src: templates/ras_server/client.crt/server/etc/openvpn/pki/issued/client.key
+            dest: /etc/openvpn/ras_vpn/client.crt
+            owner: root
+            group: root
+            mode: 0640
+        - name: copy cert ca to client
+          ansible.builtin.copy:
+            src: templates/ras_server/ca.crt/server/etc/openvpn/pki/ca.crt
+            dest: /etc/openvpn/ras_vpn/ca.crt
+            owner: root
+            group: root
+            mode: 0640
+      when: (ansible_hostname == 'client')
