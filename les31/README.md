@@ -18,6 +18,5 @@ vagrant up
 и перезапустить playbook с тэгом setup_ospf:
 ansible-playbook provision.yml -t setup_ospf
 
-Узнать:
-1. Как изменять переменные в defaults красивее
-2. Как эффективнее пользоваться jijna2
+Примечание.
+Также можно убрать дефолтную переменную symmetric_routing: false и задавать ее вручную при вызове ansible-playbook используя параметр -e symmetric_routing=false
