@@ -1,6 +1,6 @@
 ---
 - name: OpenVPN configuration
-  hosts: all
+  hosts: tun-tap
   #Параметр выполнения модулей от root-пользователя
   become: yes
   tasks:

@@ -1,12 +1,18 @@
 #!/bin/bash
-cd /etc/openvpn/
+
+make-cadir /etc/openvpn/easy-rsa
+cd /etc/openvpn/easy-rsa
 rm -rf pki
-/usr/share/easy-rsa/3.0.8/easyrsa init-pki
-echo 'rasvpn' | /usr/share/easy-rsa/3.0.8/easyrsa build-ca nopass
-echo 'rasvpn' | /usr/share/easy-rsa/3.0.8/easyrsa gen-req server nopass
-echo 'yes' | /usr/share/easy-rsa/3.0.8/easyrsa sign-req server server
-/usr/share/easy-rsa/3.0.8/easyrsa gen-dh
+./easyrsa init-pki
+echo 'rasvpn' | ./easyrsa build-ca nopass
+echo 'rasvpn' | ./easyrsa gen-req server2 nopass
+./easyrsa gen-dh
+echo 'yes' | ./easyrsa sign-req server server2
+cp pki/dh.pem pki/ca.crt pki/issued/server2.crt pki/private/server2.key /etc/openvpn/
+echo 'myclient' | ./easyrsa gen-req myclient nopass
+echo 'yes' | ./easyrsa sign-req client myclient
+cp pki/issued/myclient.crt pki/private/myclient.key /etc/openvpn
+cd ..
 openvpn --genkey --secret ta.key
-echo 'client' | /usr/share/easy-rsa/3/easyrsa gen-req client nopass
-echo 'yes' | /usr/share/easy-rsa/3/easyrsa sign-req client client
-echo 'iroute 10.2.2.0 255.255.255.0' > /etc/openvpn/client/client 
+#echo 'iroute 10.2.2.0 255.255.255.0' > /etc/openvpn/client/client
+touch /etc/openvpn/playbook2.done 

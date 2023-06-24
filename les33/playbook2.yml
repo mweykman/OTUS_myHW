@@ -1,17 +1,11 @@
 ---
-- name: OpenVPN configuration. Part 2
-  hosts: all
-  #Параметр выполнения модулей от root-пользователя
+- name: OpenVPN configuration
+  hosts: ras_server
   become: yes
-  #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
-  tasks:  
-  - name:  Install EPEL Repo package from standard repo
-    yum:
-      name: epel-release
-      state: present
+  tasks:
   - name: install applications
-    yum:
-      name: 
+    apt:
+      name:
         - easy-rsa
         - nano
         - traceroute
@@ -19,102 +13,46 @@
         - openvpn
         - iperf3
       state: present
-      update_cache: true   
-  - name: server block
-    block:
-# настраиваем selinux
-      - name: turn off selinux
-        become: true
-        shell: >
-          setenforce 0;  
-#генерируем ключ и сертификаты
-      - name: keys generation
-        ansible.builtin.script: templates/certs_key_gen.sh
-   #    args:
-    #     creates: /etc/openvpn/playbook2.done 
-# копируем конфиг на сервер
-      - name: copy server.conf to server
-        template:
-          src: templates/ras_server.conf
-          dest: /etc/openvpn/server.conf
-          owner: root
-          group: root
-          mode: 0640
+      update_cache: true
+    #генерируем ключ и сертификаты
+  - name: keys generation
+    ansible.builtin.script: templates/certs_key_gen.sh
+    args:
+      creates: /etc/openvpn/playbook2.done
 # Копируем сертификаты и ключ с сервера на клиент
-      - name: Store ca cert to host
-        ansible.builtin.fetch:
-          src: /etc/openvpn/pki/ca.crt
-          dest: templates/ras_server/ca.crt
-      - name: Store client cert to host
-        ansible.builtin.fetch:
-          src: /etc/openvpn/pki/issued/client.crt
-          dest: templates/ras_server/client.crt
-      - name: Store client key to host
-        ansible.builtin.fetch:
-          src: /etc/openvpn/pki/private/client.key
-          dest: templates/ras_server/client.key
+  - name: Store ca cert to host
+    ansible.builtin.fetch:
+      src: /etc/openvpn/ca.crt
+      dest: templates/ras_server/ca.crt
+  - name: Store client cert to host
+    ansible.builtin.fetch:
+      src: /etc/openvpn/myclient.crt
+      dest: templates/ras_server/myclient.crt
+  - name: Store client key to host
+    ansible.builtin.fetch:
+      src: /etc/openvpn/myclient.key
+      dest: templates/ras_server/myclient.key
+  - name: Store ta.key to host
+    ansible.builtin.fetch:
+      src: /etc/openvpn/ta.key
+      dest: templates/ras_server/ta.key
+      
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+# копируем конфиг на сервер
+  - name: copy server2.conf to server
+    template:
+      src: templates/ras_server.conf
+      dest: /etc/openvpn/server2.conf
+      owner: root
+      group: root
+      mode: 0640
 #включаем/перезапускаем Open VPN службу
-      - name: enable openvpn service
-        service:
-          name: openvpn@server
-          state: restarted
-          enabled: true
-      - name: set up forward packages across routers
-        sysctl:
-          name: net.ipv4.conf.all.forwarding
-          value: '1'
-          state: present
-    when: (ansible_hostname == 'server')    
-
-# блок, если используем в качестве клиента ВМ client
-  - name: copy certs, key and config to client block
-    block:
-      - name: create directory ras_vpn
-        become: true
-        shell: >
-          mkdir /etc/openvpn/ras_vpn;  
-      - name: copy key to client
-        ansible.builtin.copy:
-          src: templates/ras_server/client.key/server/etc/openvpn/pki/private/client.key
-          dest: /etc/openvpn/ras_vpn/client.key
-          owner: root
-          group: root
-          mode: 0640
-      - name: copy cert client to client
-        ansible.builtin.copy:
-          src: templates/ras_server/client.crt/server/etc/openvpn/pki/issued/client.crt
-          dest: /etc/openvpn/ras_vpn/client.crt
-          owner: root
-          group: root
-          mode: 0640
-      - name: copy cert ca to client
-        ansible.builtin.copy:
-          src: templates/ras_server/ca.crt/server/etc/openvpn/pki/ca.crt
-          dest: /etc/openvpn/ras_vpn/ca.crt
-          owner: root
-          group: root
-          mode: 0640
-          # копируем конфиг на сервер
-      - name: copy server.conf to server
-        template:
-          src: templates/ras_client.conf
-          dest: /etc/openvpn/ras_vpn/client.conf
-          owner: root
-          group: root
-          mode: 0640
-    # настраиваем selinux
-    #  - name: turn off selinux
-    #    become: true
-    #    shell: >
-    #      setenforce 0; 
-    # задаем параметр iroute       
-#      - name: add iroute to client
-#        become: true
-#        shell: >
-#          echo 'iroute 192.168.56.0 255.255.255.0' > /etc/openvpn/client/client;
-    # подключаемся к впн серверу 
-    #  - name: connect to VPN
-    #    become: true
-    #    shell: >
-    #      openvpn --config client.conf;
-    when: (ansible_hostname == 'client')
+  - name: enable openvpn service
+    service:
+      name: openvpn@server2
+      state: restarted
+      enabled: true      
