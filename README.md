@@ -11,6 +11,7 @@ les09. Инициализация системы. Systemd
 les10-11. Bash. Grep, sed,awk etc. Scripts
 les12.  Управление процессами. 
 les15-16. Ansible
+les17. Selinux (первая и вторая часть)
 les18-19. Docker
 les21. Prometheus
 les25. Архитектура сетей.

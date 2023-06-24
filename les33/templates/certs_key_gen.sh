@@ -9,4 +9,4 @@ echo 'yes' | /usr/share/easy-rsa/3.0.8/easyrsa sign-req server server
 openvpn --genkey --secret ta.key
 echo 'client' | /usr/share/easy-rsa/3/easyrsa gen-req client nopass
 echo 'yes' | /usr/share/easy-rsa/3/easyrsa sign-req client client
-echo 'iroute 192.168.56.0 255.255.255.0' > /etc/openvpn/client/client # !!! указать сеть локальной машины (клиента)
+echo 'iroute 10.2.2.0 255.255.255.0' > /etc/openvpn/client/client 

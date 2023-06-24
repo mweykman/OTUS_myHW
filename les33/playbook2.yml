@@ -3,25 +3,25 @@
   hosts: all
   #Параметр выполнения модулей от root-пользователя
   become: yes
-    #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
-    tasks:  
-    - name:  Install EPEL Repo package from standard repo
-      yum:
-        name: epel-release
-        state: present
-    - name: install applications
-      yum:
-        name: 
-          - easy-rsa
-          - nano
-          - traceroute
-          - net-tools
-          - openvpn
-          - iperf3
-        state: present
-        update_cache: true   
-    - name: server block
-      block:
+  #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
+  tasks:  
+  - name:  Install EPEL Repo package from standard repo
+    yum:
+      name: epel-release
+      state: present
+  - name: install applications
+    yum:
+      name: 
+        - easy-rsa
+        - nano
+        - traceroute
+        - net-tools
+        - openvpn
+        - iperf3
+      state: present
+      update_cache: true   
+  - name: server block
+    block:
 # настраиваем selinux
       - name: turn off selinux
         become: true
@@ -64,30 +64,57 @@
           name: net.ipv4.conf.all.forwarding
           value: '1'
           state: present
-      when: (ansible_hostname == 'server')    
+    when: (ansible_hostname == 'server')    
 
 # блок, если используем в качестве клиента ВМ client
-    - name: copy certs and key to client block
-      block:
-        - name: copy key to client
-          ansible.builtin.copy:
-            src: templates/ras_server/client.key/server/etc/openvpn/pki/private/client.key
-            dest: /etc/openvpn/ras_vpn/client.key
-            owner: root
-            group: root
-            mode: 0600
-        - name: copy cert client to client
-          ansible.builtin.copy:
-            src: templates/ras_server/client.crt/server/etc/openvpn/pki/issued/client.key
-            dest: /etc/openvpn/ras_vpn/client.crt
-            owner: root
-            group: root
-            mode: 0640
-        - name: copy cert ca to client
-          ansible.builtin.copy:
-            src: templates/ras_server/ca.crt/server/etc/openvpn/pki/ca.crt
-            dest: /etc/openvpn/ras_vpn/ca.crt
-            owner: root
-            group: root
-            mode: 0640
-      when: (ansible_hostname == 'client')
+  - name: copy certs, key and config to client block
+    block:
+      - name: create directory ras_vpn
+        become: true
+        shell: >
+          mkdir /etc/openvpn/ras_vpn;  
+      - name: copy key to client
+        ansible.builtin.copy:
+          src: templates/ras_server/client.key/server/etc/openvpn/pki/private/client.key
+          dest: /etc/openvpn/ras_vpn/client.key
+          owner: root
+          group: root
+          mode: 0640
+      - name: copy cert client to client
+        ansible.builtin.copy:
+          src: templates/ras_server/client.crt/server/etc/openvpn/pki/issued/client.crt
+          dest: /etc/openvpn/ras_vpn/client.crt
+          owner: root
+          group: root
+          mode: 0640
+      - name: copy cert ca to client
+        ansible.builtin.copy:
+          src: templates/ras_server/ca.crt/server/etc/openvpn/pki/ca.crt
+          dest: /etc/openvpn/ras_vpn/ca.crt
+          owner: root
+          group: root
+          mode: 0640
+          # копируем конфиг на сервер
+      - name: copy server.conf to server
+        template:
+          src: templates/ras_client.conf
+          dest: /etc/openvpn/ras_vpn/client.conf
+          owner: root
+          group: root
+          mode: 0640
+    # настраиваем selinux
+    #  - name: turn off selinux
+    #    become: true
+    #    shell: >
+    #      setenforce 0; 
+    # задаем параметр iroute       
+#      - name: add iroute to client
+#        become: true
+#        shell: >
+#          echo 'iroute 192.168.56.0 255.255.255.0' > /etc/openvpn/client/client;
+    # подключаемся к впн серверу 
+    #  - name: connect to VPN
+    #    become: true
+    #    shell: >
+    #      openvpn --config client.conf;
+    when: (ansible_hostname == 'client')
