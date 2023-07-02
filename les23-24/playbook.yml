@@ -1,0 +1,91 @@
+---
+- hosts: all
+  #Параметр выполнения модулей от root-пользователя
+  become: yes
+  tasks:
+  - name:  Install EPEL Repo package from standard repo
+    yum:
+      name: epel-release
+      state: present
+  - name: install base tools
+    yum:
+      name:
+        - nano
+        - chrony
+      state: present
+      update_cache: true
+# настраиваем selinux
+  - name: turn off selinux, config time zone
+    become: true
+    shell: >
+      setenforce 0;
+      timedatectl set-timezone Europe/Moscow;
+  - name: restart chronyd service (sync time)
+    service:
+      name: chronyd
+      state: restarted
+      enabled: true
+
+- hosts: log   
+  become: yes
+  tasks:   
+  - name: install rsyslog
+    yum:
+      name:
+        - rsyslog
+      state: present
+      update_cache: true 
+  - name: copy rsyslog.conf to server
+    template:
+      src: templates/rsyslog_server.conf
+      dest: /etc/rsyslog.conf
+      owner: root
+      group: root
+      mode: 0640
+  - name: restart rsyslog service
+    service:
+      name: rsyslog
+      state: restarted
+      enabled: true
+  - name: modificate audit configs
+    become: true
+    shell: >      
+      sed -i 's|##tcp_listen_port|tcp_listen_port|' /etc/audit/auditd.conf;
+      service auditd restart;
+
+- hosts: web
+  become: yes
+  tasks:
+  - name: fix gpg error with nginx
+    become: true
+    shell: >
+      dnf update -y rpm;
+  - name: install Nginx and some other applications
+    yum: 
+      name:
+      - nginx
+      - audispd-plugins
+      state: present
+      update_cache: true
+  - name: restart nginx service
+    service:
+      name: nginx
+      state: restarted
+      enabled: true
+  - name: modificate nginx config
+    become: true
+    shell: >
+      sed -i 's|access_log  /var/log/nginx/access.log  main|access_log syslog:server=192.168.56.15:514,tag=nginx_access,severity=info combined|' /etc/nginx/nginx.conf;
+      sed -i 's|error_log /var/log/nginx/error.log|error_log syslog:server=192.168.56.15:514,tag=nginx_error|' /etc/nginx/nginx.conf;
+      systemctl restart nginx;
+  - name: modificate audit configs
+    become: true
+    shell: >
+      echo "-w /etc/nginx/nginx.conf -p wa -k nginx_conf" >> /etc/audit/rules.d/audit.rules;
+      echo "-w /etc/nginx/default.d/ -p wa -k nginx_conf" >> /etc/audit/rules.d/audit.rules;
+      sed -i 's|log_format = ENRICHED|log_format = RAW|' /etc/audit/auditd.conf;
+      sed -i 's|name_format = NONE|name_format = HOSTNAME|' /etc/audit/auditd.conf;
+      sed -i 's|active = no|active = yes|' /etc/audit/plugins.d/au-remote.conf;
+      sed -i 's|remote_server = |remote_server = 192.168.56.15|' /etc/audit/audisp-remote.conf;
+      service auditd restart;
+
