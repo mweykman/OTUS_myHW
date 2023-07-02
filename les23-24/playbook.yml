@@ -75,7 +75,7 @@
   - name: modificate nginx config
     become: true
     shell: >
-      sed -i 's|access_log  /var/log/nginx/access.log  main|access_log syslog:server=192.168.56.15:514,tag=nginx_access,severity=info combined|' /etc/nginx/nginx.conf;
+      sed -i '/access_log  \x2Evar*/a access_log syslog:server=192.168.56.15:514,tag=nginx_access,severity=info combined/' /etc/nginx/nginx.conf;
       sed -i 's|error_log /var/log/nginx/error.log|error_log syslog:server=192.168.56.15:514,tag=nginx_error|' /etc/nginx/nginx.conf;
       systemctl restart nginx;
   - name: modificate audit configs
