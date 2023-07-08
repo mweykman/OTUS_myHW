@@ -1,0 +1,8 @@
+для включения/выключения доступа к серверу по SSH с паролем и для других задач,
+где требуется изменить 1 строчку в кончиге:
+
+  - name: SSH Login access turn on 
+    lineinfile: 
+      dest: /etc/ssh/sshd_config 
+      regexp: '^PasswordAuthentication' 
+      line: 'PasswordAuthentication yes'

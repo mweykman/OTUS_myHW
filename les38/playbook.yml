@@ -1,0 +1,127 @@
+---
+- hosts: all
+  #Параметр выполнения модулей от root-пользователя
+  become: yes
+  tasks:
+  - name:  Install EPEL Repo package from standard repo
+    yum:
+      name: epel-release
+      state: present
+  - name: install base tools
+    yum:
+      name:
+        - nano
+        - chrony
+        - borgbackup
+      state: present
+      update_cache: true
+  # настраиваем selinux
+  - name: Disable SELinux
+    ansible.posix.selinux:
+      state: disabled
+  - name: config time zone
+    become: true
+    shell: >
+      timedatectl set-timezone Europe/Moscow;
+  - name: restart chronyd service (sync time)
+    service:
+      name: chronyd
+      state: restarted
+      enabled: true
+  - name: create user borg
+    ansible.builtin.user:
+      name: borg
+      create_home: true
+      password: $6$mEBAQeecKw3mTPeW$JoPu8CpgGrt5QuECWEZEVfi49amXy0aI9BW/gI2Cr7A7J.ZNk2FSW.bTsX9oSytVdArAO6dPPQEKFUX4AgJYt0
+  - name: create .ssh folder
+    become_user: borg
+    ansible.builtin.file:
+      path: /home/borg/.ssh
+      state: directory
+      owner: borg
+      group: borg
+      mode: '0700'
+#  - name: create .ssh/authorized_keys folder
+#    become_user: borg
+#    ansible.builtin.file:
+#      path: /home/borg/.ssh/authorized_keys
+#      state: touch
+#      owner: borg
+#      group: borg
+#      mode: '0600'
+- hosts: client
+  become: yes
+  tasks:
+  - name: Generate an OpenSSH keypair
+    become_user: borg
+    community.crypto.openssh_keypair:
+      path: /home/borg/.ssh/id_rsa
+      owner: borg
+#    when: (ansible_hostname == 'client')
+# Копируем сертификаты и ключ с сервера на клиент
+  - name: Store pub key to host
+    ansible.builtin.fetch:
+      src: /home/borg/.ssh/id_rsa.pub
+      dest: templates/ssh-key.pub
+  - name: copy service configs to server
+    template:
+      src: templates/borg-backup.service
+      dest: /etc/systemd/system/borg-backup.service
+      owner: root
+      group: root
+      mode: 0640
+  - name: copy timer configs to server
+    template:
+      src: templates/borg-backup.timer
+      dest: /etc/systemd/system/borg-backup.timer
+      owner: root
+      group: root
+      mode: 0640
+
+- hosts: backup
+  become: yes
+  tasks:
+  - name: make filesystem for backup
+    community.general.filesystem:
+      fstype: ext4
+      dev: /dev/sdb
+      force: true
+      state: present
+    ignore_errors: True
+  - name: Create a directory backup if it does not exist
+    ansible.builtin.file:
+      path: /var/backup
+      state: directory
+      owner: borg
+      group: borg
+      mode: '0777'
+  - name: Mount buckup storage
+    ansible.posix.mount:
+      path: /var/backup
+      src: /dev/sdb
+      fstype: ext4
+      state: mounted
+  - name: clean backup folder (and fix owner)
+    become: true
+    shell: >
+      rm -rf /var/backup/*;
+      chown borg:borg /var/backup;
+# копируем ключ на сервер backup
+  - name: copy pub key to server (rewrite authorized_keys file)
+    template:
+      src: templates/ssh-key.pub/client/home/borg/.ssh/id_rsa.pub
+      dest: /home/borg/.ssh/authorized_keys
+      owner: borg
+      group: borg
+      mode: 0600
+  - name: restart sshd service
+    service:
+      name: sshd
+      state: restarted
+      enabled: true
+
+#  - name: start borg-backup.timer
+#    service:
+#      name: borg-backup.timer
+#      state: start
+#      enabled: true
