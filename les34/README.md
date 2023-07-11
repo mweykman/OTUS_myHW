@@ -1,18 +1,41 @@
-# Vagrant DNS Lab
+# DNS, Bind, dns-split
+Описание домашнего задания
+1. взять стенд https://github.com/erlong15/vagrant-bind 
+добавить еще один сервер client2
+завести в зоне dns.lab имена:
+web1 - смотрит на клиент1
+web2  смотрит на клиент2
+завести еще одну зону newdns.lab
+завести в ней запись
+www - смотрит на обоих клиентов
 
-A Bind's DNS lab with Vagrant and Ansible, based on CentOS 7.
+2. настроить split-dns
+клиент1 - видит обе зоны, но в зоне dns.lab только web1
+клиент2 видит только dns.lab
 
-# Playground
+Дополнительное задание
+* настроить все без выключения selinux
 
+# Выполнение
+Все необходимые изменения произведены в конфиг файлах и плейбуке. 
+Для запуска стенда:
 <code>
-    vagrant ssh client
+vagrant up
 </code>
 
-  * zones: dns.lab, reverse dns.lab and ddns.lab
-  * ns01 (192.168.50.10)
-    * master, recursive, allows update to ddns.lab
-  * ns02 (192.168.50.11)
-    * slave, recursive
-  * client (192.168.50.15)
-    * used to test the env, runs rndc and nsupdate
-  * zone transfer: TSIG key
+Для проверки работы первого клиента:
+<code>
+    vagrant ssh client1
+    ping www.newdns.lab #должен резолвиться в 192.168.56.10
+    ping web1.dns.lab #должен резолвиться в 192.168.56.10
+    ping web2.dns.lab #должна быть ошика имя не найдено
+</code>
+
+Для проверки работы второго клиента:
+<code>
+    vagrant ssh client2
+    ping www.newdns.lab #должен резолвиться в 192.168.56.10
+    ping web1.dns.lab #должен резолвиться в 192.168.56.10
+    ping web2.dns.lab #должен резолвиться в 192.168.56.20
+
+</code>

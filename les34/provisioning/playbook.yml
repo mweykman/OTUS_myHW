@@ -7,12 +7,14 @@
       name:  
         - bind
         - bind-utils
-        - ntp
+        - chrony
+        - nano
       state: latest
       update_cache: true
-  - name: Disable SELinux
-    ansible.posix.selinux:
-      state: disabled
+    ignore_errors: True #при повторном запуске может возникнуть проблема с доступом к Интернет
+#  - name: Disable SELinux
+#    ansible.posix.selinux:
+#      state: disabled
   - name: config time zone
     become: true
     shell: >
@@ -24,17 +26,22 @@
       enabled: true
 
   - name: copy transferkey to all servers and the client
-    copy: src=named.zonetransfer.key dest=/etc/named.zonetransfer.key owner=root group=named mode=0644
+    template: src=named.zonetransfer.key dest=/etc/named.zonetransfer.key owner=root group=named mode=0644
 
 - hosts: ns01
   become: yes
   tasks:
   - name: copy named.conf
-    copy: src=master-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+    template: src=master-named.conf dest=/etc/named.conf owner=root group=named mode=0640
   - name: copy zones
-    copy: src={{ item }} dest=/etc/named/ owner=root group=named mode=0660
-    with_fileglob:
-      - named.d*
+    template: src={{ item }} dest=/etc/named/ owner=root group=named mode=0660
+    with_items:
+      - named.ddns.lab
+      - named.dns.lab
+      - named.dns.lab.client
+      - named.dns.lab.rev
+      - named.newdns.lab
+
   - name: copy resolv.conf to the servers
     template: src=servers-resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
   
@@ -43,27 +50,66 @@
 
   - name: ensure named is running and enabled
     service: name=named state=restarted enabled=yes
+# настройка SELinux
+  - name: allow bind to write the master zone files
+    seboolean:
+      name: named_write_master_zones
+      state: yes
+      persistent: yes
+
+  - name: set selinux context to files in /etc/named/
+    sefcontext:
+      target: '/etc/named(/.*)?'
+      setype: named_zone_t
+      state: present
+      reload: yes
+
+  - name: run restorecon
+    command: restorecon -R -v /etc/named    
 
 - hosts: ns02
   become: yes
   tasks:
   - name: copy named.conf
-    copy: src=slave-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+    template: src=slave-named.conf dest=/etc/named.conf owner=root group=named mode=0640
   - name: copy resolv.conf to the servers
     template: src=servers-resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
-
+  - name: copy zones
+    template: src={{ item }} dest=/etc/named/ owner=root group=named mode=0660
+    with_items:
+      - named.ddns.lab
+      - named.dns.lab
+      - named.dns.lab.client
+      - named.dns.lab.rev
+      - named.newdns.lab
   - name: set /etc/named permissions
     file: path=/etc/named owner=root group=named mode=0670
 
   - name: ensure named is running and enabled
     service: name=named state=restarted enabled=yes
+
+  - name: allow bind to write the master zone files
+    seboolean:
+      name: named_write_master_zones
+      state: yes
+      persistent: yes
+
+  - name: set selinux context to files in /etc/named/
+    sefcontext:
+      target: '/etc/named(/.*)?'
+      setype: named_zone_t
+      state: present
+      reload: yes
+
+  - name: run restorecon
+    command: restorecon -R -v /etc/named  
     
 - hosts: client1, client2
   become: yes
   tasks:
   - name: copy resolv.conf to the client
-    copy: src=client-resolv.conf dest=/etc/resolv.conf owner=root group=root mode=0644
-  - name: copy rndc conf file
-    copy: src=rndc.conf dest=/home/vagrant/rndc.conf owner=vagrant group=vagrant mode=0644
+    template: src=client-resolv.conf dest=/etc/resolv.conf owner=root group=root mode=0644
+  - name: copy rndc.conf file
+    template: src=rndc.conf dest=/home/vagrant/rndc.conf owner=vagrant group=vagrant mode=0644
   - name: copy motd to the client
-    copy: src=client-motd dest=/etc/motd owner=root group=root mode=0644
+    template: src=client-motd dest=/etc/motd owner=root group=root mode=0644
