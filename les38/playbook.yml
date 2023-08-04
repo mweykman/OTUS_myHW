@@ -57,12 +57,12 @@
     community.crypto.openssh_keypair:
       path: /home/borg/.ssh/id_rsa
       owner: borg
-#    when: (ansible_hostname == 'client')
-# Копируем сертификаты и ключ с сервера на клиент
+# Копируем публичный ключ с сервера на хост
   - name: Store pub key to host
     ansible.builtin.fetch:
       src: /home/borg/.ssh/id_rsa.pub
       dest: templates/ssh-key.pub
+# Копируем конфиги на client
   - name: copy service configs to server
     template:
       src: templates/borg-backup.service
@@ -77,6 +77,19 @@
       owner: root
       group: root
       mode: 0640
+# Для успешного запуска сервиса руту нужны ключи для подключения к backup, копируем их
+  - name: copy keys to ROOT
+    become: true
+    shell: >
+      cd /home/borg/.ssh;
+      cp id_rsa /root/.ssh;
+      cp id_rsa.pub /root/.ssh;
+# Запускаем timer для автоматизированного запуска бэкапов
+#  - name: start borg-backup.timer
+#    service:
+#      name: borg-backup.timer
+#      state: start
+#      enabled: true
 
 - hosts: backup
   become: yes
@@ -117,11 +130,5 @@
   - name: restart sshd service
     service:
       name: sshd
-      state: restarted
+      state: started
       enabled: true
-
-#  - name: start borg-backup.timer
-#    service:
-#      name: borg-backup.timer
-#      state: start
-#      enabled: true

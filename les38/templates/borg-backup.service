@@ -4,8 +4,8 @@ Description=Borg Backup
 [Service]
 Type=oneshot
 
-# Парольная фраза
-Environment="BORG_PASSPHRASE=Otus1234"
+# Парольная фраза. Нужна, если при инициализации репозитория был задан пароль
+#Environment="BORG_PASSPHRASE=Otus1234"
 # Репозиторий
 Environment=REPO=borg@192.168.56.10:/var/backup/
 # Что бэкапим
