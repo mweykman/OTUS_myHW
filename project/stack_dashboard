@@ -1,0 +1,20 @@
+version: '3.5'
+
+services:
+  dashboard:
+    image: linuxserver/heimdall:latest
+    container_name: heimdall
+    environment:
+      - TZ=Europe/Moscow
+      - PGID=1001
+      - PUID=1010
+    volumes:
+      - /opt/heimdail/config:/config
+    ports:
+    #  - "80:80"
+      - "443:443"
+    restart: always    
+    deploy:
+      placement:
+        constrains:
+          - "node.hostname==Router"        

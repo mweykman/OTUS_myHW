@@ -1,0 +1,27 @@
+---
+- hosts: servers_db
+  become: yes
+  tasks:
+    - name: bootstrap start
+      service: 
+        name: mysql@bootstrap.service
+        state: started
+        #enabled: true
+      when: (ansible_hostname == "Server3")
+    - name: start nodes
+      service: 
+        name: mysql
+        state: started
+        enabled: true
+      when: (ansible_hostname != "Server3")
+    - name: bootstrap stop
+      service: 
+        name: mysql@bootstrap.service
+        state: stopped
+      when: (ansible_hostname == "Server3")
+    - name: start first node in normal mode
+      service: 
+        name: mysql
+        state: started
+        enabled: true
+      when: (ansible_hostname == "Server3")

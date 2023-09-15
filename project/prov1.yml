@@ -1,0 +1,311 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: Install docker packages # устанавливаем пакеты необходимые для установки докера
+      become: yes
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - wget
+          - software-properties-common
+          - nano
+          - gnupg2
+          - lsb-release
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    - name: Add Docker s official GPG key
+      become: yes
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags:
+        - docker
+  
+    - name: Verify that we have the key with the fingerprint
+      become: yes    
+      apt_key:
+        id: 0EBFCD88
+        state: present
+      tags:
+        - docker
+    - name: Set up the stable repository # добавляем репозиторий докера
+      become: yes    
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    
+    - name: Update apt packages
+      become: yes
+      apt:
+        update_cache: yes
+      tags:
+        - docker
+    - name: Install docker # установка докера
+      become: yes    
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    - name: Add remote "vagrant" user to "docker" group
+      become: yes
+      ansible.builtin.user:
+        name: vagrant
+        group: "docker"
+        append: yes
+      tags:
+        - docker 
+    - name: Install docker-compose 
+      become: yes
+      get_url:
+        url : https://github.com/docker/compose/releases/download/1.25.1-rc1/docker-compose-Linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: 0777
+      tags:
+        - docker 
+
+- hosts: Server1
+  become: yes
+  gather_facts: false
+  tasks: 
+    - name: Install HA proxy
+      become: yes
+      apt:
+        name:
+          - haproxy
+          - keepalived
+      tags:
+        - haproxy
+        - keepalived
+    - name: Copy haproxy config
+      template: src=LB/haproxy.cfg dest=/etc/haproxy/haproxy.cfg
+      tags:
+        - haproxy
+    - name: Copy keepalived config
+      template: 
+        src: LB/keepalived.conf.j2 
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: 0640
+      tags:
+        - keepalived
+#    - name: Copy keepalived config to server 1
+#      template: 
+#        src: LB/keepalived_s1.conf 
+#        dest: /etc/keepalived/keepalived.conf
+#        owner: root
+#        group: root
+#        mode: 0640
+#      when: (ansible_hostname == "Server1")
+#      tags:
+#        - keepalived
+#        
+#    - name: Copy keepalived config to server 2
+#      template: 
+#        src: LB/keepalived_s2.conf
+#        dest: /etc/keepalived/keepalived.conf
+#        owner: root
+#        group: root
+#        mode: 0640
+#      when: (ansible_hostname == "Server2")
+#      tags:
+#        - keepalived
+
+    - name: sysctl config
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: 1
+        state: present
+      tags:
+        - keepalived
+    - name: Add nologin user keepalived_script
+      become: yes
+      ansible.builtin.user:
+        name: keepalived_script
+        shell: /bin/false
+      tags:
+        - keepalived
+
+    - name: Enable HA proxy
+      become: yes
+      service: 
+        name: haproxy
+        state: restarted
+        enabled: true 
+      tags:
+        - haproxy
+    - name: Enable keepalived
+      become: yes
+      service: 
+        name: keepalived
+        state: restarted
+        enabled: true  
+      tags:
+        - keepalived
+        
+- hosts: Server2
+  become: yes
+  gather_facts: false
+  tasks: 
+    - name: Install HA proxy
+      become: yes
+      apt:
+        name:
+          - haproxy
+          - keepalived
+      tags:
+        - haproxy
+        - keepalived
+    - name: Copy haproxy config
+      template: src=LB/haproxy.cfg dest=/etc/haproxy/haproxy.cfg
+      tags:
+        - haproxy
+    - name: Copy keepalived config
+      template: 
+        src: LB/keepalived.conf.j2 
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: 0640
+      tags:
+        - keepalived
+#    - name: Copy keepalived config to server 1
+#      template: 
+#        src: LB/keepalived_s1.conf 
+#        dest: /etc/keepalived/keepalived.conf
+#        owner: root
+#        group: root
+#        mode: 0640
+#      when: (ansible_hostname == "Server1")
+#      tags:
+#        - keepalived
+#        
+#    - name: Copy keepalived config to server 2
+#      template: 
+#        src: LB/keepalived_s2.conf
+#        dest: /etc/keepalived/keepalived.conf
+#        owner: root
+#        group: root
+#        mode: 0640
+#      when: (ansible_hostname == "Server2")
+#      tags:
+#        - keepalived
+
+    - name: sysctl config
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: 1
+        state: present
+      tags:
+        - keepalived
+    - name: Add nologin user keepalived_script
+      become: yes
+      ansible.builtin.user:
+        name: keepalived_script
+        shell: /bin/false
+      tags:
+        - keepalived
+
+    - name: Enable HA proxy
+      become: yes
+      service: 
+        name: haproxy
+        state: restarted
+        enabled: true 
+      tags:
+        - haproxy
+    - name: Enable keepalived
+      become: yes
+      service: 
+        name: keepalived
+        state: restarted
+        enabled: true  
+      tags:
+        - keepalived
+
+
+- hosts: Server1
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
+      copy: src=server1 dest=/home/vagrant
+      tags:
+        - configs
+    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
+      meta: reset_connection
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f s1_docker-compose.yml up -d"
+        chdir: /home/vagrant/server1
+
+- hosts: Server2
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
+      copy: src=server2 dest=/home/vagrant
+      tags:
+        - configs
+    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
+      meta: reset_connection
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f s2_docker-compose.yml up -d"
+        chdir: /home/vagrant/server2  
+
+- hosts: Server3
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
+      copy: src=server3 dest=/home/vagrant
+      tags:
+        - configs
+    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
+      meta: reset_connection
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f s3_docker-compose.yml up -d"
+        chdir: /home/vagrant/server3  
+
+- hosts: Router
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: create user for dashboard  
+      ansible.builtin.user:
+        name: heimdail
+        uid: 1010
+        shell: /bin/false
+      tags:
+        - dashboard
+    - name: create directory for dashboard config
+      file:
+        path: /opt/heimdail/config
+        state: directory
+        owner: heimdail
+      tags:
+        - dashboard
+
+    - name: Copy project #
+      copy: src=router dest=/home/vagrant
+      tags:
+        - configs
+    - name: reset ssh connection
+      meta: reset_connection
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f router_docker-compose.yml up -d"
+        chdir: /home/vagrant/router

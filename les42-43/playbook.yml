@@ -1,0 +1,23 @@
+---
+- hosts: master
+  become: yes
+  tasks:
+  - name: Install repo Percona
+    yum:
+      name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      state: present
+  - name: install Percona and tools
+    yum:
+      name:
+        - Percona-Server-server-57
+        - nano
+      state: present
+  - name: copy configs
+    ansible.builtin.copy:
+      src: conf/conf.d/
+      dest: /etc/my.cnf.d
+  - name: start MSQL service
+    service: 
+      name: mysql
+      state: restarted
+      enabled: true

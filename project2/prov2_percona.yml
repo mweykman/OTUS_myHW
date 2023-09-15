@@ -1,0 +1,132 @@
+---
+- hosts: servers_db
+  become: yes  
+  vars:
+    mysql_root_password: Otus2023!
+  tasks:
+    - name: wget deb package
+      ansible.builtin.get_url:
+        url: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+        dest: /home/vagrant
+        #mode: ''
+    - name: dpkg -i percona-release_latest.generic_all.deb
+      shell: dpkg -i percona-release_latest.generic_all.deb
+    - name: Only run "update_cache=yes"
+      apt:
+        update_cache: yes
+    - name: shell sudo percona-release setup pxc80
+      shell: sudo percona-release setup pxc80
+    - name: Install Percona XtraDB
+      apt:
+        name: 
+          - percona-xtradb-cluster
+          - python3
+          - python3-pip
+        state: present
+        update_cache: yes
+      tags: apt-install
+    - name: Make sure pymysql is present
+      pip:
+        name: pymysql
+        state: present
+    - name: Change root password (fail is not a problem)   
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+      when: (ansible_hostname == "Server3")
+      ignore_errors: yes
+    - name: copy pem files from Server3
+      block:    
+      - name: copy cert from Server3
+        ansible.builtin.fetch:
+          src: /var/lib/mysql/server-cert.pem
+          dest: ./percona/certs/
+      - name: copy key from Server3
+        ansible.builtin.fetch:
+          src: /var/lib/mysql/server-key.pem
+          dest: ./percona/certs/
+      - name: copy key from Server3
+        ansible.builtin.fetch:
+          src: /var/lib/mysql/ca.pem
+          dest: ./percona/certs/
+      when: (ansible_hostname == "Server3")
+    - name: copy .pem files to servers
+      ansible.builtin.copy:
+        src: '{{ item }}' 
+        dest: /var/lib/mysql/
+        owner: mysql
+        group: mysql
+        mode: 0644
+      loop:
+      - ./percona/certs/Server3/var/lib/mysql/ca.pem
+      - ./percona/certs/Server3/var/lib/mysql/server-cert.pem
+    - name: copy key file to servers
+      ansible.builtin.copy:
+        src: ./percona/certs/Server3/var/lib/mysql/server-key.pem
+        dest: /var/lib/mysql/
+        owner: mysql
+        group: mysql
+        mode: 0600
+    - name: copy config
+      template:
+        src: ./percona/mysqld.j2
+        dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+############## keepalived
+    - name: Install keepalived
+      become: yes
+      apt:
+        name:
+#          - haproxy
+          - keepalived
+      tags:
+#        - haproxy
+        - keepalived
+#    - name: Copy haproxy config
+#      template: src=LB/haproxy.cfg dest=/etc/haproxy/haproxy.cfg
+#      tags:
+#        - haproxy
+    - name: Copy keepalived config
+      template: 
+        src: percona/keepalived_db.conf.j2 
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: 0640
+      tags:
+        - keepalived
+
+    - name: sysctl config
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: 1
+        state: present
+      tags:
+        - keepalived
+    - name: Add nologin user keepalived_script
+      become: yes
+      ansible.builtin.user:
+        name: keepalived_script
+        shell: /bin/false
+      tags:
+        - keepalived
+
+#    - name: Enable HA proxy
+#      become: yes
+#      service: 
+#        name: haproxy
+#        state: restarted
+#        enabled: true 
+#      tags:
+#        - haproxy
+    - name: Enable keepalived
+      become: yes
+      service: 
+        name: keepalived
+        state: restarted
+        enabled: true  
+      tags:
+        - keepalived

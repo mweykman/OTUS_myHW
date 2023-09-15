@@ -1,0 +1,114 @@
+MACHINES = {
+  :Server1 => {
+    :box_name => "bento/ubuntu-20.04",
+    :vm_name => "Server1",
+    :cpus => 1,
+    :memory => 1024,
+    :net => [
+            {ip: '192.168.56.10'},
+            ]
+  },
+  :Server2 => {
+    :box_name => "bento/ubuntu-20.04",
+  #  :box_version => "20210210.0",
+    :vm_name => "Server2",
+    :cpus => 1,
+    :memory => 1024,
+  #  :disks => {
+  #    :sata1 => {
+  #      :dfile => 'sata1.vdi',
+  #      :size => 2048,
+  #      :port => 1
+  #    },
+  #  },  
+    :net => [
+            {ip: '192.168.56.20'},
+            ]
+  },
+  :Server3 => {
+    :box_name => "bento/ubuntu-20.04",
+    :vm_name => "Server3",
+    :cpus => 2,
+    :memory => 2048,
+    :disks => {
+      :sata1 => {
+        :dfile => 'sata1.vdi',
+        :size => 4096,
+        :port => 1
+      },
+    },  
+    :net => [
+            {ip: '192.168.56.30'},
+            ]
+  }, 
+  :Server4 => {
+    :box_name => "bento/ubuntu-20.04",
+    :vm_name => "Server4",
+    :cpus => 2,
+    :memory => 2048,
+    :net => [
+            {ip: '192.168.56.40'},
+            ]
+  },
+  :Server5 => {
+    :box_name => "bento/ubuntu-20.04",
+    :vm_name => "Server5",
+    :cpus => 2,
+    :memory => 2048,
+    :net => [
+            {ip: '192.168.56.50'},
+            ]
+  },
+       
+#  :Router => {
+#    :box_name => "bento/ubuntu-20.04",
+#    :vm_name => "Router",
+#    :cpus => 1,
+#    :memory => 512,
+#    #:public => {:ip => '10.10.10.1', :adapter => 1},
+#    :net => [                   
+#              # {ip: '192.168.255.1', adapter: 2, netmask: "255.255.255.252", virtualbox__intnet: "router-net"},
+#               {ip: '192.168.56.5', adapter: 8},
+#            ]
+#},
+}
+Vagrant.configure("2") do |config|
+    MACHINES.each do |boxname, boxconfig|
+        #config.vm.synced_folder ".", "/vagrant", disabled: true
+        config.vm.define boxname do |box|
+          box.vm.box = boxconfig[:box_name]
+          box.vm.host_name = boxconfig[:vm_name]
+#          config.vm.network "forwarded_port", guest: 8083, host: 8083
+#          config.vm.network "forwarded_port", guest: 8081, host: 8081
+#          config.vm.network "forwarded_port", guest: 8082, host: 8082
+          box.vm.provision "shell", inline: <<-SHELL
+          mkdir -p ~root/.ssh
+                cp ~vagrant/.ssh/auth* ~root/.ssh                
+          SHELL
+          boxconfig[:net].each do |ipconf|
+            box.vm.network "private_network", ipconf
+          end
+          box.vm.provider :virtualbox do |vb|
+            vb.memory = boxconfig[:memory]
+            vb.cpus = boxconfig[:cpus]
+            if boxconfig[:vm_name] == "Server3"
+            #  vb.customize ["storagectl", :id, "--name", "SATA controller", "--add", "sata" ] #create SATA controller
+              boxconfig[:disks].each do |dname, dconf|
+              unless File.exist?(dconf[:dfile])
+                vb.customize ['createmedium', '--filename', dconf[:dfile], '--size', dconf[:size], '--variant', 'Standard'] #create disk
+                vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', dconf[:port], '--device', 0, '--type', 'hdd', '--medium', dconf[:dfile]] #attach Disks to SATA controller
+              end
+            end    
+            end
+          end          
+#          if boxconfig[:vm_name] == "DynamicWeb" #загружена последняя ВМ
+#            box.vm.provision "ansible" do |ansible|
+#              ansible.playbook = "prov.yml"
+#              ansible.inventory_path = "hosts"
+#              ansible.host_key_checking = "false"
+#              ansible.limit = "all"
+#            end
+#          end
+       end
+    end
+end

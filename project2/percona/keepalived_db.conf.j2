@@ -1,0 +1,80 @@
+
+{% if ansible_hostname == 'Server3' %}
+global_defs {
+  router_id db_lb01
+}
+{% endif %}
+{% if ansible_hostname == 'Server4' %}
+global_defs {
+  router_id db_lb02
+}
+{% endif %}
+{% if ansible_hostname == 'Server5' %}
+global_defs {
+  router_id db_lb03
+}
+{% endif %}
+
+vrrp_script check_msqld {
+  script "/usr/bin/pidof mysqld"
+  interval 2
+  weight 2
+}
+
+{% if ansible_hostname == 'Server3' %}
+vrrp_instance xtraDB {
+    state MASTER
+    interface eth1
+    virtual_router_id 201
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass Otus2023
+    }
+    virtual_ipaddress {
+        192.168.56.55
+    }
+    track_script {
+    check_mysqld
+  }
+}
+{% endif %}
+{% if ansible_hostname == 'Server4' %}
+vrrp_instance xtraDB {
+    state BACKUP
+    interface eth1
+    virtual_router_id 201
+    priority 90
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass Otus2023
+    }
+    virtual_ipaddress {
+        192.168.56.55
+    }
+    track_script {
+    check_mysqld
+  }
+}
+{% endif %}
+{% if ansible_hostname == 'Server5' %}
+vrrp_instance xtraDB {
+    state BACKUP
+    interface eth1
+    virtual_router_id 201
+    priority 80
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass Otus2023
+    }
+    virtual_ipaddress {
+        192.168.56.55
+    }
+    track_script {
+    check_mysqld
+  }
+}
+{% endif %}

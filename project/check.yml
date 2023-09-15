@@ -1,0 +1,126 @@
+version: '3.5'
+
+services:
+
+  wordpress:
+    image: wordpress
+    restart: unless-stopped
+    ports:
+      - 8080:80
+    environment:
+      WORDPRESS_DB_HOST: db_master
+      WORDPRESS_DB_USER: otus
+      WORDPRESS_DB_PASSWORDP_FILE: /run/secrets/mysql_pass
+      WORDPRESS_DB_NAME: wp_db
+    secrets:
+      - mysql_pass
+    volumes:
+      - wordpress:/var/www/html
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - "node.labels.TAG==wp"
+    depends_on:
+      - db_master
+
+
+  db_master:
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - 1441:3306  
+    command: [ "mysqld", "--loose-group-replication-local-address=db_master:6606", "--default-authentication-plugin=mysql_native_password" ]
+    environment:
+      MYSQL_DATABASE: wp_db
+      MYSQL_USER: otus
+      MYSQL_PASSWORD: mysql_pass
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_pass
+    secrets:
+      - mysql_pass
+    volumes:
+      - db:/var/lib/mysql
+    configs:
+      - source: mysql8.cnf
+        target: /etc/mysql/conf.d/my.cnf
+#      - source: DB_01_server1
+#        target: /etc/mysql/conf.d/01-base.cnf
+#      - source: DB_02_server1
+#        target: /etc/mysql/conf.d/02-max-connections.cnf
+#      - source: DB_03_server1
+#        target: /etc/mysql/conf.d/03-perfomance.cnf
+#      - source: DB_04_server1
+#        target: /etc/mysql/conf.d/04-slow-query.cnf
+#      - source: DB_05_server1
+#        target: /etc/mysql/conf.d/05-binlog.cnf
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.labels.TAG==wp"
+          - "node.hostname==Server1"
+
+#  db_slave:
+#    image: mysql:5.7
+#    restart: unless-stopped
+#    ports:
+#      - 1442:3306  
+#    command: [ "mysqld", "--loose-group-replication-local-address=db_slave:6606", "--default-authentication-plugin=mysql_native_password" ]
+#    environment:
+#      MYSQL_DATABASE: wp_db
+#      MYSQL_USER: otus
+#      MYSQL_PASSWORD: mysql_pass
+#      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_pass
+#    secrets:
+#      - mysql_pass
+#    volumes:
+#      - db:/var/lib/mysql
+#    configs:
+#      - source: DB_01_server2
+#        target: /etc/mysql/conf.d/01-base.cnf
+#      - source: DB_02_server1
+#        target: /etc/mysql/conf.d/02-max-connections.cnf
+#      - source: DB_03_server1
+#        target: /etc/mysql/conf.d/03-perfomance.cnf
+#      - source: DB_04_server1
+#        target: /etc/mysql/conf.d/04-slow-query.cnf
+#      - source: DB_05_server2
+#        target: /etc/mysql/conf.d/05-binlog.cnf       
+#    deploy:
+#      replicas: 1
+#      placement:
+#        constraints:
+#          - "node.labels.TAG==wp"
+#          - "node.hostname==Server2"
+#          
+volumes:
+  wordpress:
+  db:
+
+secrets:
+  mysql_pass:
+    external: true
+    
+configs:
+  mysql8.cnf:
+    external: true
+#  DB_01_server1:
+#    external: true
+#  DB_02_server1:
+#    external: true
+#  DB_03_server1:
+#    external: true
+#  DB_04_server1:
+#    external: true
+#  DB_05_server1:
+#    external: true
+#  DB_01_server2:
+#    external: true
+#  DB_02_server2:
+#    external: true
+#  DB_03_server2:
+#    external: true
+#  DB_04_server2:
+#    external: true
+#  DB_05_server2:
+#    external: true

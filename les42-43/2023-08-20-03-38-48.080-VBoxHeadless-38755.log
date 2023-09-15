@@ -1,0 +1,12 @@
+Log created: 2023-08-20T03:38:48.805097000Z
+Process ID:  38755 (0x9763)
+Parent PID:  1 (0x1)
+Executable:  /usr/lib/virtualbox/VBoxHeadless
+Arg[0]: /usr/lib/virtualbox/VBoxHeadless
+Arg[1]: --comment
+Arg[2]: les42-43_master_1692443354332_4501
+Arg[3]: --startvm
+Arg[4]: 9a059585-17b7-44ad-a2b3-9a70b369232e
+Arg[5]: --vrde
+Arg[6]: config
+AddRef: illegal refcnt=3221225469 state=2

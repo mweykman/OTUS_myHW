@@ -1,0 +1,52 @@
+version: "3.5"
+services:
+
+  database:
+    image: mysql:8.0 # используем готовый образ mysql от разработчиков
+    container_name: database
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME} # Имя и пароль базы данных будут задаваться в отдельном .env файле
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - ./dbdata:/var/lib/mysql # Чтобы данные базы не пропали при остановке/удалении контейнера, будем сохранять их на хост-машине
+      - ./DBconf/conf.d:/etc/mysql/conf.d #переносим конфиги в контейнер
+    command: '--default-authentication-plugin=mysql_native_password'
+    networks:
+      - app-network
+  
+  wordpress:
+    image: wordpress:5.1.1-fpm-alpine # официальный образ от разработчиков
+    container_name: wordpress
+    restart: unless-stopped
+  # на странице образа в docker hub написано, какие можно задать переменные контейнеру https://hub.docker.com/_/wordpress
+    environment:
+      WORDPRESS_DB_HOST: database
+      WORDPRESS_DB_NAME: "${DB_NAME}" # Также импортируем переменные из .env
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: "${DB_ROOT_PASSWORD}"
+    volumes:
+      - ./wordpress:/var/www/html # сохраняем приложение на хост машине
+    networks:
+      - app-network
+    depends_on:
+      - database # контейнер wordpress дождется запуска БД
+  
+  node-exporter:
+    image: prom/node-exporter:v1.3.1
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude'
+      - '^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+ 
+networks:
+    app-network:
+      name: app-network
+      driver: bridge
