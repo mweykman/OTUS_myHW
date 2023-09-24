@@ -1,4 +1,4 @@
-{% if ansible_hostname == 'Server1' %}
+{% if ansible_hostname == 'lb1' %}
 global_defs {
   router_id lb01
 }
@@ -28,7 +28,7 @@ vrrp_instance my-web {
 }
 
 {% endif %}
-{% if ansible_hostname == 'Server2' %}
+{% if ansible_hostname == 'lb2' %}
 global_defs {
   router_id lb02
 }

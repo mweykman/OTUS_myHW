@@ -4,13 +4,11 @@
   vars:
     mysql_root_password: Otus2023!
   tasks:
-    - name: wget deb package
-      ansible.builtin.get_url:
-        url: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
-        dest: /home/vagrant
-        #mode: ''
     - name: dpkg -i percona-release_latest.generic_all.deb
-      shell: dpkg -i percona-release_latest.generic_all.deb
+      apt: 
+        deb: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+#    - name: dpkg -i percona-release_latest.generic_all.deb
+#      shell: dpkg -i percona-release_latest.generic_all.deb
     - name: Only run "update_cache=yes"
       apt:
         update_cache: yes

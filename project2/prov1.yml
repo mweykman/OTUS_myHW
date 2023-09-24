@@ -15,6 +15,7 @@
           - nano
           - gnupg2
           - lsb-release
+          - python3-apt
         state: present
         update_cache: yes
       tags:
@@ -75,67 +76,7 @@
         - docker 
 
 ############## Server 1 block
-- hosts: Server1
-  become: yes
-  gather_facts: false
-  tasks: 
-    - name: Install HA proxy
-      become: yes
-      apt:
-        name:
-          - haproxy
-          - keepalived
-      tags:
-        - haproxy
-        - keepalived
-    - name: Copy haproxy config
-      template: src=LB/haproxy.cfg dest=/etc/haproxy/haproxy.cfg
-      tags:
-        - haproxy
-    - name: Copy keepalived config
-      template: 
-        src: LB/keepalived.conf.j2 
-        dest: /etc/keepalived/keepalived.conf
-        owner: root
-        group: root
-        mode: 0640
-      tags:
-        - keepalived
-
-    - name: sysctl config
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_nonlocal_bind
-        value: 1
-        state: present
-      tags:
-        - keepalived
-    - name: Add nologin user keepalived_script
-      become: yes
-      ansible.builtin.user:
-        name: keepalived_script
-        shell: /bin/false
-      tags:
-        - keepalived
-
-    - name: Enable HA proxy
-      become: yes
-      service: 
-        name: haproxy
-        state: restarted
-        enabled: true 
-      tags:
-        - haproxy
-    - name: Enable keepalived
-      become: yes
-      service: 
-        name: keepalived
-        state: restarted
-        enabled: true  
-      tags:
-        - keepalived
-
-############## Server 2 block        
-- hosts: Server2
+- hosts: loadbalancers
   become: yes
   gather_facts: false
   tasks: 
@@ -196,7 +137,8 @@
 
 
 
-############## WordPress block
+
+############## web block (copy containers)
 
 - hosts: Server1
   become: yes 
@@ -210,69 +152,45 @@
       meta: reset_connection
       tags:
         - web
-#    - name: Run container
-#      shell:
-#        cmd: "docker-compose -f s1_docker-compose.yml up -d"
-#        chdir: /home/vagrant/server1
-#      tags:
-#        - web
-#
-#- hosts: Server2
-#  become: yes 
-#  gather_facts: false
-#  tasks:
-#    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
-#      copy: src=server2 dest=/home/vagrant
-#      tags:
-#        - configs
-#    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
-#      meta: reset_connection
-#    - name: Run container
-#      shell:
-#        cmd: "docker-compose -f s2_docker-compose.yml up -d"
-#        chdir: /home/vagrant/server2  
-#
-#- hosts: Server3
-#  become: yes 
-#  gather_facts: false
-#  tasks:
-#    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
-#      copy: src=server3 dest=/home/vagrant
-#      tags:
-#        - configs
-#    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
-#      meta: reset_connection
-#    - name: Run container
-#      shell:
-#        cmd: "docker-compose -f s3_docker-compose.yml up -d"
-#        chdir: /home/vagrant/server3  
-#
-#- hosts: Router
-#  become: yes 
-#  gather_facts: false
-#  tasks:
-#    - name: create user for dashboard  
-#      ansible.builtin.user:
-#        name: heimdail
-#        uid: 1010
-#        shell: /bin/false
-#      tags:
-#        - dashboard
-#    - name: create directory for dashboard config
-#      file:
-#        path: /opt/heimdail/config
-#        state: directory
-#        owner: heimdail
-#      tags:
-#        - dashboard
-#
-#    - name: Copy project #
-#      copy: src=router dest=/home/vagrant
-#      tags:
-#        - configs
-#    - name: reset ssh connection
-#      meta: reset_connection
-#    - name: Run container
-#      shell:
-#        cmd: "docker-compose -f router_docker-compose.yml up -d"
-#        chdir: /home/vagrant/router
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f s1_docker-compose.yml up -d"
+        chdir: /home/vagrant/server1
+      tags:
+        - web
+
+
+
+- hosts: Server2
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: Copy project # Копируем проект с хост машины в созданную через vagrant
+      copy: src=server2 dest=/home/vagrant
+      tags:
+        - configs
+    - name: reset ssh connection # чтобы применились права на использование docker, необходимо перелогиниться
+      meta: reset_connection
+    - name: Run container
+      shell:
+        cmd: "docker-compose -f s2_docker-compose.yml up -d"
+        chdir: /home/vagrant/server2  
+
+- hosts: servers_web
+  become: yes 
+  gather_facts: false
+  tasks:
+    - name: create user for dashboard  
+      ansible.builtin.user:
+        name: heimdail
+        uid: 1010
+        shell: /bin/false
+      tags:
+        - dashboard
+    - name: create directory for dashboard config
+      file:
+        path: /opt/heimdail/config
+        state: directory
+        owner: heimdail
+      tags:
+        - dashboard

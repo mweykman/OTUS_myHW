@@ -8,12 +8,18 @@
         state: started
         #enabled: true
       when: (ansible_hostname == "Server3")
+    - name: pause 20 secs
+      pause:
+        seconds: 20
     - name: start nodes
       service: 
         name: mysql
         state: started
         enabled: true
       when: (ansible_hostname != "Server3")
+    - name: pause 20 secs
+      pause:
+        seconds: 20
     - name: bootstrap stop
       service: 
         name: mysql@bootstrap.service
@@ -24,4 +30,26 @@
         name: mysql
         state: started
         enabled: true
+    - name: create database WP and user for it
+      shell: mysql -uroot -p Otus2023! < /vagrant/create_bd.txt
       when: (ansible_hostname == "Server3")
+
+
+#заметки
+# show status like 'wsrep%';
+# use mysql;
+# select user from user;
+# GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'ПАРОЛЬ';
+# show databases;
+# CREATE USER 'test'@'localhost' IDENTIFIED BY 'secret';
+# FLUSH PRIVILEGES;
+# GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+# FLUSH PRIVILEGES;
+#
+#
+#
+#
+#
+#
+#
+#
