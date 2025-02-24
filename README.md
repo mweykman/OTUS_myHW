@@ -23,3 +23,5 @@ les34. DNS, bind, dns-split
 les38. Резервное копирование. borg
 les41. Динамический веб
 les42-43. MySQL, replication, backup
+
+Notes: add information about final project
